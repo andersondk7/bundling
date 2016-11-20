@@ -12,7 +12,7 @@ class ProcessorSpec extends FunSpec {
 
   import org.aea.bundle.TestData._
 
-  case class TestCase(discounts: Seq[Discount], cart: Cart, cost: Int)
+  case class TestCase(discounts: Seq[Discount], cart: Cart, expectedCost: Int)
 
   val emptyDiscountTest = TestCase(List(), fullCart, 5500)
   val noDiscountsTest = TestCase(List(butterDiscount), noDisountsCart, 3900)
@@ -30,7 +30,7 @@ class ProcessorSpec extends FunSpec {
     it("should only have alacarte items when there are no discounts to apply") {
       val bestCart = executeTest(emptyDiscountTest)
       bestCart.aLaCarteItems should be(fullCart.aLaCarteItems)
-      bestCart.cost shouldBe 5500
+      bestCart.cost shouldBe emptyDiscountTest.expectedCost
     }
     it("should have only aLaCarte items when no discounts apply") {
       noDisountsCart.appliedDiscounts.isEmpty shouldBe true
@@ -43,7 +43,7 @@ class ProcessorSpec extends FunSpec {
       bestCart.aLaCarteItems.count(item => item.id == butter.id) shouldBe 1
       bestCart.appliedDiscounts.size shouldBe 0
       noDisountsCart.appliedDiscounts.isEmpty shouldBe true
-      noDisountsCart.cost shouldBe 3900
+      noDisountsCart.cost shouldBe noDiscountsTest.expectedCost
     }
     it("should apply a single discount") {
       fullCart.appliedDiscounts.isEmpty shouldBe true
@@ -56,7 +56,7 @@ class ProcessorSpec extends FunSpec {
       bestCart.aLaCarteItems.count(item => item.id == butter.id) shouldBe 1
       bestCart.appliedDiscounts.size shouldBe 2
       bestCart.appliedDiscounts should contain(butterDiscount)
-      bestCart.cost shouldBe 5300
+      bestCart.cost shouldBe singleDiscountTest.expectedCost
       fullCart.cost shouldBe 5500
       fullCart.appliedDiscounts.isEmpty shouldBe true
     }
@@ -73,7 +73,7 @@ class ProcessorSpec extends FunSpec {
       bestCart.appliedDiscounts.count(discount => discount.id == hamCheeseButterDiscount.id) shouldBe 1
       bestCart.appliedDiscounts.count(discount => discount.id == butterDiscount.id) shouldBe 0
       bestCart.appliedDiscounts.size shouldBe 3
-      bestCart.cost shouldBe 4400
+      bestCart.cost shouldBe skipDiscountTest.expectedCost
       littleButterCart.cost shouldBe 5200
       littleButterCart.appliedDiscounts.isEmpty shouldBe true
     }
@@ -90,7 +90,7 @@ class ProcessorSpec extends FunSpec {
       bestCart.appliedDiscounts.count(discount => discount.id == hamCheeseMustardDiscount.id) shouldBe 2
       bestCart.appliedDiscounts.count(discount => discount.id == hamCheeseButterDiscount.id) shouldBe 1
       bestCart.appliedDiscounts.count(discount => discount.id == butterDiscount.id) shouldBe 2
-      bestCart.cost shouldBe 4500
+      bestCart.cost shouldBe allDiscountsTest.expectedCost
       fullCart.cost shouldBe 5500
       fullCart.appliedDiscounts.isEmpty shouldBe true
     }
@@ -100,7 +100,7 @@ class ProcessorSpec extends FunSpec {
 
       val testFutures: Seq[Future[Cart]] = testCases.map(tc => service.checkout(tc.discounts, tc.cart))
       val eventualResults: Future[Seq[Boolean]] = Future.sequence(testFutures)
-        .map(carts => carts.map(_.cost) zip testCases.map(_.cost)) // combine actual with expected
+        .map(carts => carts.map(_.cost) zip testCases.map(_.expectedCost)) // combine actual with expected
         .map(pairs => pairs.map(p => p._1 == p._2)) // compare actual with expected
 
       // this won't tell us which one fails, but all of these test cases were tested individually so they should still pass
